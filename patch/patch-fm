@@ -1,0 +1,84 @@
+commit 30b8267fef53c171766621f3423c9b7d82006c23
+Author: Kiril Mikos <kiril.mik.os@gmail.com>
+Date:   Sun Jan 15 14:14:21 2012 +0200
+
+    Add IOCTL for fm volume level changing.
+
+diff --git a/arch/arm/mach-msm/qdsp5/snd.c b/arch/arm/mach-msm/qdsp5/snd.c
+index a59ff26..59ba271 100644
+--- a/arch/arm/mach-msm/qdsp5/snd.c
++++ b/arch/arm/mach-msm/qdsp5/snd.c
+@@ -55,6 +55,7 @@ static struct snd_ctxt the_snd;
+ #define SND_SET_VOLUME_PROC 3
+ #define SND_AVC_CTL_PROC 29
+ #define SND_AGC_CTL_PROC 30
++#define SND_SET_FM_RADIO_VOLUME_PROC 72
+ 
+ //LGE_SND_UPDATE_S [
+ #define SND_72XX_RPC_EXTCMD_PROC 40
+@@ -153,6 +154,17 @@ struct snd_audio_cal_msg_rep {
+ 	struct rpc_reply_hdr hdr;
+     uint32_t result;
+ } cal_msg_rep;
++
++struct rpc_snd_set_fm_radio_vol_args {
++     uint32_t volume;
++     uint32_t cb_func;
++     uint32_t client_data;
++};
++
++struct snd_set_fm_radio_vol_msg {
++    struct rpc_request_hdr hdr;
++    struct rpc_snd_set_fm_radio_vol_args args;
++};
+ //LGE_SND_UPDATE_E ]
+ 
+ struct snd_endpoint *get_snd_endpoints(int *size);
+@@ -210,6 +222,8 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ //LGE_SND_UPDATE_S [
+     struct msm_snd_72xx_rpc_extcmd_config rpc_extcmd_conf;
+ 	struct msm_snd_audio_cal_config snd_audio_cal_conf;
++	struct msm_snd_set_fm_radio_vol_param fmradiovol;
++	struct snd_set_fm_radio_vol_msg fmrmsg;
+ //LGE_SND_UPDATE_E ]
+ 
+ 	struct snd_ctxt *snd = file->private_data;
+@@ -393,6 +407,22 @@ static long snd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 			}
+ 		}
+ 		break;
++	case SND_SET_FM_RADIO_VOLUME:
++		if (copy_from_user(&fmradiovol, (void __user *) arg, sizeof(fmradiovol))) {
++			pr_err("snd_ioctl set amp_gain: invalid pointer.\n");
++			rc = -EFAULT;
++			break;
++		}
++		fmrmsg.args.volume = cpu_to_be32(fmradiovol.volume);
++		fmrmsg.args.cb_func = -1;
++		fmrmsg.args.client_data = 0;
++
++		pr_info("snd_set_fm_radio_volume %d\n", fmradiovol.volume);
++
++		rc = msm_rpc_call(snd->ept,
++			SND_SET_FM_RADIO_VOLUME_PROC,
++			&fmrmsg, sizeof(fmrmsg), 5 * HZ);
++		break;
+ //LGE_SND_UPDATE_E ]
+ 
+ 	default:
+diff --git a/include/linux/msm_audio.h b/include/linux/msm_audio.h
+index 31c999f..85b9612 100644
+--- a/include/linux/msm_audio.h
++++ b/include/linux/msm_audio.h
+@@ -372,5 +372,11 @@ struct msm_snd_audio_cal_config {
+ };
+ 
+ #define SND_AUDIO_CAL _IOWR(SND_IOCTL_MAGIC, 9, struct msm_snd_audio_cal_config *)
++
++struct msm_snd_set_fm_radio_vol_param {
++	int32_t volume;
++};
++
++#define SND_SET_FM_RADIO_VOLUME _IOWR(SND_IOCTL_MAGIC, 17, int *)
+ //LGE_SND_UPDATE_E ]
+ #endif

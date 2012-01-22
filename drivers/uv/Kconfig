@@ -1,0 +1,14 @@
+#
+# p500uv module configuration
+#
+
+config P500_UNDERVOLT
+	tristate "LG Optimus One P500 Undervolt"
+	help
+	  Say Y here if you want to build an undervolt module for LG-P500
+
+	  If unsure, say N.
+
+	  To compile this module, choose M here: the
+	  module will be called p500uv.
+
